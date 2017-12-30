@@ -1036,4 +1036,162 @@ module.exports = { scripts };
 }
 
 
+//Tests
+
+import 'jest-styled-components';
+import React from 'react';
+import renderer from 'react-test-renderer';
+import { shallow } from 'enzyme';
+import { withTheme } from '../../../utils/TestUtils';
+
+import AppointmentItem from './AppointmentItem';
+
+describe('AppointmentItem', () => {
+  it('should return an error if passed with no props', () => {
+    console.error = jest.fn();
+    shallow(<AppointmentItem />);
+    expect(console.error).toHaveBeenCalledTimes(6);
+  });
+
+  it('should return an AppointmentItem with styles rendered', () => {
+    const apptItem = {
+      startDate: '2017-10-27T10:00:00Z',
+      endDate: '2017-10-27T10:30:00Z',
+      description: 'Catch up for prioritising feature stories',
+      customers: [
+        {
+          CISKey: '23456789',
+          custNumber: '98765432',
+          firstName: 'Ryan',
+          lastName: 'Marchant',
+          isPrimary: true,
+        },
+      ],
+      employees: [
+        {
+          employeeNumber: 'L058071',
+          name: 'Raman Agneswaran',
+        },
+      ],
+      location: 'Main conference room',
+    };
+
+    const wrapper = renderer
+      .create(withTheme(<AppointmentItem {...apptItem} />))
+      .toJSON();
+    expect(wrapper).toMatchSnapshot();
+  });
+
+  it('should render the AppointmentItem with AppointmentTime, AppointmentSummary and AppointmentDetailsTrigger', () => {
+    const apptItem = {
+      startDate: '2017-10-27T10:00:00Z',
+      endDate: '2017-10-27T10:30:00Z',
+      description: 'Catch up for prioritising feature stories',
+      customers: [
+        {
+          CISKey: '23456789',
+          custNumber: '98765432',
+          firstName: 'Ryan',
+          lastName: 'Marchant',
+          isPrimary: true,
+        },
+      ],
+      employees: [
+        {
+          employeeNumber: 'L058071',
+          name: 'Raman Agneswaran',
+        },
+      ],
+      location: 'Main conference room',
+    };
+
+    const wrapper = shallow(
+      withTheme(<AppointmentItem {...apptItem} />)
+    ).dive();
+    expect(wrapper).toMatchSnapshot();
+  });
+
+  it('should render the AppointmentItem with AppointmentTime, AppointmentSummary and AppointmentDetailsTrigger with detailOpen trigger passed in', () => {
+    const apptItem = {
+      startDate: '2017-10-27T10:00:00Z',
+      endDate: '2017-10-27T10:30:00Z',
+      description: 'Catch up for prioritising feature stories',
+      customers: [
+        {
+          CISKey: '23456789',
+          custNumber: '98765432',
+          firstName: 'Ryan',
+          lastName: 'Marchant',
+          isPrimary: true,
+        },
+      ],
+      employees: [
+        {
+          employeeNumber: 'L058071',
+          name: 'Raman Agneswaran',
+        },
+      ],
+      location: 'Main conference room',
+    };
+
+    const wrapper = shallow(
+      withTheme(
+        <AppointmentItem
+          {...apptItem}
+          detailOpen={() => console.log('Trigger appointment details')}
+        />
+      )
+    ).dive();
+    expect(wrapper).toMatchSnapshot();
+  });
+});
+
+
+//App.js TEST
+
+import 'jest-styled-components';
+import React from 'react';
+import renderer from 'react-test-renderer';
+import configureMockStore from 'redux-mock-store';
+import { Provider } from 'react-redux';
+import App from './App';
+
+const mockStore = configureMockStore();
+
+/**
+ * Note: There is no value in rendering the full app as a snapshot
+ *       as the snapshot will change with every change to any of
+ *       the components within the framework.
+ *
+ *       Instead we ensure that with missing config data, the app
+ *       is showing a loader and that without a valid theme it
+ *       will return null (not render) thus testing the HOCs that
+ *       <App /> is wrapped with.
+ */
+describe('App', () => {
+  it('should show a loader if no config is present', () => {
+    const store = mockStore({ config: {} });
+    const component = (
+      <Provider store={store}>
+        <App />
+      </Provider>
+    );
+    const tree = renderer.create(component).toJSON();
+    expect(tree).toMatchSnapshot();
+  });
+  it('should return null if no theme is present', () => {
+    const store = mockStore({
+      config: {
+        appName: 'test',
+      },
+    });
+    const component = (
+      <Provider store={store}>
+        <App />
+      </Provider>
+    );
+    const tree = renderer.create(component).toJSON();
+    expect(tree).toBeNull();
+  });
+});
 
