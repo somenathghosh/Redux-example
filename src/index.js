@@ -533,4 +533,507 @@ export default connect(
 )(Users);
 
 
+//env/default/app-config.json
+
+{
+  "sourceappconfig" :{
+    "basepath": "api/exp/employees/banker/v1/",
+    "uripaths":{
+      "companyInfo" : "companyInfo",
+      "employees":"employees"
+    }
+  }
+}
+
+
+//env/local/app-config.json
+{
+  "sourceappconfig" :{
+    "_comments" : "Change the hostname and port accordingly. If you are running config app fake api[<project>/fake-api] on local machine, please change it to localhost or 127.0.0.1",
+    "protocol" : "http",
+    "hostname" : "127.0.0.1",
+    "port": "7000"
+  }
+}
+
+
+//layout/app.js
+import React from 'react';
+import { Container, Row, Col} from 'reactstrap';
+import NavigationBar from '../containers/navigationBar';
+import Users from '../containers/userList';
+import EmployeeDetail from '../containers/employeeDetail';
+
+export default class App extends React.Component {
+    render() {
+      return (
+         <div>
+            <NavigationBar/>
+            <Container fluid>
+              <Row>
+                <Col xs={12} md={12}>
+                    <h2 className="text-center">Our Employees</h2>
+                </Col>
+              </Row>
+              <Row>
+                <Col xs={12} md={12}>
+
+                </Col>
+              </Row>
+
+
+              <Users />
+
+            </Container>
+         </div>
+      );
+   }
+}
+
+
+//redux/middleware
+
+import { actions as appconfigActions } from '../modules/contextHandover.module';
+
+export default ({store, dispatch}) => next => action => {
+  const { payload, type } = action;
+  switch (type) {
+    case appconfigActions.app.contextConfig.receive().type:
+      if (!payload) {
+        return next(action);
+      }
+      window.open(payload.redirectURL, '_blank');
+      break;
+    default:
+      break;
+  }
+
+  if (next) next(action);
+};
+
+
+//redux/modules/appconfig.module.js
+
+import { createActions, handleActions } from 'redux-actions';
+
+export const actions = createActions({
+  app: {
+    config: {
+      REQUEST: () => {},
+      RECEIVE: config => ({ ...config }),
+      ERROR: null,
+    },
+  },
+});
+
+export const reducer = handleActions(
+  {
+    [actions.app.config.request]: (state, action) => {
+      console.log('actions.app.config.request ===>');
+      console.log(state);
+      return {
+        isLoading: true
+      }
+
+    },
+    [actions.app.config.receive]: (state, action) => {
+      console.log('actions.app.config.receive ===>');
+      console.log(state);
+      console.log(action.payload);
+      return {
+        isLoading: false,
+        ...action.payload,
+      }
+
+    },
+    [actions.app.config.error]: (state, action) => ({}),
+  },
+  {}
+);
+
+export default reducer;
+
+
+//redux/modules/appmodal.module.js
+import { createActions, handleActions } from 'redux-actions';
+
+export const actions = createActions({
+  app: {
+    modal: {
+      OPEN: (payload) => {console.log(payload); return payload},
+      CLOSE: () => ({}),
+      ERROR: null,
+    },
+  },
+});
+
+export const reducer = handleActions(
+  {
+    [actions.app.modal.open]: (state, action) => {
+      console.log('From actions.app.modal.open ==>');
+      console.log(state);
+      console.log(action.payload);
+      return action.payload;
+
+    },
+    [actions.app.modal.close]: (state, action) => {
+      console.log('From Modal Reducer ===>');
+      console.log(state);
+      return false;
+
+
+    },
+    [actions.app.modal.error]: (state, action) => ({}),
+  },
+  {}
+);
+
+export default reducer;
+
+
+//redux/sagas/appconfig.saga.js
+
+import { put, call, takeEvery } from 'redux-saga/effects';
+import { actions } from '../modules/appconfig.module';
+import {COMPANYINFO_URL,EMPLOYEE_URL} from '../../constant';
+import { get } from '../../services/api';
+
+export function* loadAppConfig() {
+  try {
+    const company = yield call(get, COMPANYINFO_URL);
+    const companyInfo = company.data ? company.data : null;
+    const comployees = yield call(get, EMPLOYEE_URL);
+    const employeesInfo = comployees.data ? comployees.data: null;
+    // console.log('From Saga =====>');
+    // console.log(companyInfo,employeesInfo);
+    yield put(actions.app.config.receive({companyInfo,employeesInfo}));
+  } catch (error) {
+    yield put(actions.app.config.error(error));
+  }
+}
+
+export function* watchAppConfig() {
+  yield takeEvery(actions.app.config.request().type, loadAppConfig);
+}
+
+
+//redux/sagas/index.js
+import { all } from 'redux-saga/effects';
+import { watchAppConfig } from './appconfig.saga';
+// import { watchContextManagementConfig } from './contextHandover.saga';
+
+export default function* rootSaga() {
+  yield all([watchAppConfig()]);
+}
+
+
+//rootReducer.js
+
+import { combineReducers } from 'redux';
+import configReducer from './modules/appconfig.module';
+import modalReducer from './modules/appmodal.module';
+
+
+const rootReducer = combineReducers({
+  isDevMode: () => process.env.NODE_ENV !== 'production',
+  config: configReducer,
+  modal: modalReducer
+});
+
+export default rootReducer;
+
+
+//rootReducer.test.js
+
+import { combineReducers } from 'redux';
+import { createStore } from 'redux';
+
+import rootReducer from './rootReducer';
+
+import configReducer from './modules/appconfig.module';
+import entitiesReducer from './modules/contextHandover.module';
+
+describe('rootReducer', () => {
+  let store = createStore(rootReducer);
+
+  beforeEach(() => {
+    store = createStore(rootReducer);
+  });
+
+  it('initial store state for the shape isDevMode in test should be true ', () => {
+    expect(store.getState().isDevMode).toEqual(true);
+  });
+
+  it('initial store state for the shape config in test should be empty ', () => {
+    expect(store.getState().config).toEqual(configReducer(undefined, {}));
+  });
+
+  it('initial store state for the shape entities in test should be empty ', () => {
+    expect(store.getState().entities).toEqual(entitiesReducer(undefined, {}));
+  });
+
+
+});
+
+
+//store.js
+
+import { createStore, applyMiddleware } from 'redux';
+import { composeWithDevTools } from 'redux-devtools-extension';
+import createSagaMiddleware from 'redux-saga';
+import wdpUIMiddleware from './middleware/wdpUIMiddleware';
+import rootReducer from './rootReducer';
+import rootSaga from './sagas';
+
+const sagaMiddleware = createSagaMiddleware();
+const defaultState = {};
+const middlewares = [sagaMiddleware, wdpUIMiddleware];
+
+export const store = createStore(
+  rootReducer,
+  defaultState,
+  composeWithDevTools(applyMiddleware(...middlewares))
+);
+
+sagaMiddleware.run(rootSaga);
+
+
+//services/api.js
+
+import apiclient from './apiclient';
+
+export const get = (url, params) => apiclient.get(url, params )
+export const post = (url, params) => apiclient.post(url, params);
+
+
+//services/apiclient.js
+
+import axios from 'axios';
+import shortid from 'shortid';
+
+// This client should only be used for json type request/response
+// For non-json types, please use a specific axios instance
+//
+// e.g. export const uploadDocument = (url, multi-part-form) => axios.post();
+// Authorization Header should be moved to middleware once that is setup as part of SSO
+export const genericConfig = () => {
+  return {
+    'Content-Type': 'application/json',
+    headers: {
+      "Authorization": 'Basic NDc5YjkxMDctN2E3Ny00OThlLTg3YTMtMDk3MjRmNTk4OTcwOmFjZDY1NmQzLTgwNzgtNGY3Ny1hODI5LWY5YjMyMWEzM2Y2ZQ==',
+    },
+
+
+  };
+};
+
+export const genericRequestInterceptor = config => {
+  return {
+    ...config,
+    headers: {
+      ...config.headers,
+      'x-messageId': shortid.generate(),
+    },
+  };
+};
+
+const apiclient = axios.create(genericConfig());
+apiclient.interceptors.request.use(
+  config => genericRequestInterceptor(config),
+  error => Promise.reject(error)
+);
+export default apiclient;
+
+//index.js
+
+/**
+ * [Demo Source Application - React + Redux + Redux-Saga Middleware]
+ * [Note: This is not actual app, integration with WDP requires design of EXIT and ENTRY handler]
+ * @author TCS
+ * @type {[type]}
+ */
+import 'bootstrap/dist/css/bootstrap.css';
+import React from "react";
+import ReactDOM from "react-dom";
+import { Provider } from "react-redux";
+import {store} from './redux/store';
+
+import App from "./layout/app";
+
+
+ReactDOM.render(
+  <Provider store={store}>
+    <App />
+  </Provider>,
+  document.getElementById('root')
+);
+
+
+//package-scripts.js
+const { crossEnv } = require('nps-utils');
+
+const startClient = 'react-scripts start';
+
+let scripts = {
+  // Starts the app dev server
+  default: startClient,
+
+  commit: {
+    default: 'git-cz',
+    retry: 'git-cz --retry',
+  },
+
+  client: startClient,
+
+  // Compiles the app to static, production ready output
+  build: 'react-scripts build',
+
+  // Run the Jest test suite
+  test: {
+    default: 'react-scripts test --env=jsdom',
+    coverage: 'react-scripts test --env=jsdom --coverage',
+    ci: `${crossEnv('CI=true')} react-scripts test --env=jsdom --coverage`,
+  },
+
+  // Removes the dependency to react-scripts/create-react-app.
+  // Executing this is a one way road, you cannot undo this.
+  eject: 'react-scripts eject',
+
+  // Interface for the commitizen commit manager
+  // commit: "./node_modules/.bin/git-cz",
+
+  // Generate the changelog
+  changelog: 'conventional-changelog -p angular -i CHANGELOG.md -s -r 0',
+};
+
+module.exports = { scripts };
+
+
+//package.json
+
+{
+  "name": "wdpui-test",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "axios": "0.17.0",
+    "bootstrap": "4.0.0-beta.2",
+    "lodash": "4.17.4",
+    "path": "0.12.7",
+    "prop-types": "^15.6.0",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "react-redux": "^5.0.6",
+    "react-router": "4.2.0",
+    "react-router-dom": "4.2.2",
+    "react-router-redux": "^4.0.8",
+    "react-scripts": "1.0.17",
+    "react-transition-group": "^2.2.1",
+    "reactstrap": "^5.0.0-alpha.4",
+    "redux": "^3.7.2",
+    "redux-actions": "2.2.1",
+    "redux-middleware": "^0.1.21",
+    "redux-saga": "0.16.0",
+    "shortid": "^2.2.8",
+    "uuid": "^3.1.0"
+  },
+  "scripts": {
+    "start": "nps",
+    "dev": "set REACT_APP_CH_HOSTNAME=AUUW02VP1673&& nps",
+    "test": "nps test"
+  },
+  "devDependencies": {
+    "nps": "^5.7.1",
+    "nps-utils": "^1.5.0",
+    "redux-devtools-extension": "^2.13.2"
+  }
+}
+
+
+//cd .. /packahe-scripts.js
+
+const { crossEnv, concurrent } = require('nps-utils');
+
+const startClient = 'lerna exec --scope wdpui-test yarn start';
+const startCoreApiMockServer = 'lerna exec --scope fake-api yarn start';
+
+
+let scripts = {
+  // Starts the app dev server
+  default: concurrent({
+    app: {
+      script: startClient,
+      color: 'green',
+    },
+    coreApi: {
+      script: startCoreApiMockServer,
+      color: 'cyan',
+    }
+  }),
+
+  commit: {
+    default: 'git-cz',
+    retry: 'git-cz --retry',
+  },
+
+  client: startClient,
+
+  // Compiles the app to static, production ready output
+  build: 'react-scripts build',
+
+  // Run the Jest test suite
+  test: {
+    default: `${crossEnv(
+      'CI=true'
+    )} react-scripts test --env=jsdom --coverage --silent`,
+    local: {
+      default: 'react-scripts test --env=jsdom --coverage',
+    },
+    coverage: 'lerna exec yarn start test.coverage',
+    ci: `${crossEnv('CI=true')} react-scripts test --env=jsdom --coverage`,
+  },
+
+  // Removes the dependency to react-scripts/create-react-app.
+  // Executing this is a one way road, you cannot undo this.
+  eject: 'react-scripts eject',
+
+  // Interface for the commitizen commit manager
+  // commit: "./node_modules/.bin/git-cz",
+
+  // Generate the changelog
+  changelog: 'conventional-changelog -p angular -i CHANGELOG.md -s -r 0',
+};
+
+module.exports = { scripts };
+
+
+//cd../package.json
+
+{
+ "author": "Somenath Ghosh",
+ "license": "UNLICENSED",
+ "devDependencies": {
+  "lerna": "^2.5.1",
+  "nps": "^5.7.1",
+  "nps-utils": "^1.5.0"
+ },
+ "dependencies": {
+  "bootstrap": "3",
+  "react-bootstrap": "^0.31.5"
+ },
+ "scripts": {
+  "start": "nps",
+  "dev": "set REACT_APP_CH_HOSTNAME=AUUW02VP1673&& nps",
+  "pretest": "lerna bootstrap",
+  "test": "lerna exec yarn test",
+  "prebuild": "rm -rf ./build",
+  "build": "lerna bootstrap && lerna exec yarn start build",
+  "postbuild": "mv ./packages/dashboard-framework/build/ ./build",
+  "commitmsg": "commitlint -e",
+  "postinstall": "lerna bootstrap",
+  "mock-api-server": "node ./tools/fake-api"
+ }
+}
+
+
 
