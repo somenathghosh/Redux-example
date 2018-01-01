@@ -281,5 +281,43 @@ describe('API  Testing :', () => {
   })
 })
 
+// container test
       
+import 'jest-styled-components';
+import React from 'react';
+import { shallow } from 'enzyme';
+
+import AppointmentsContainer from './AppointmentsContainer';
+import { withTheme } from '../../../utils/TestUtils';
+
+describe('AppointmentsContainer ', () => {
+  it('should match snapshot with hardcoded appointments', () => {
+    const component = withTheme(<AppointmentsContainer />);
+    // Do not dive as the component uses short-id
+    // Compare parts
+    const wrapper = shallow(component);
+    expect(wrapper).toMatchSnapshot();
+  });
+});
+
+      
+ // component test
+      
+ import 'jest-styled-components';
+import React from 'react';
+import { shallow } from 'enzyme';
+
+import AppointmentsContainer from './AppointmentsContainer';
+import { withTheme } from '../../../utils/TestUtils';
+
+describe('AppointmentsContainer ', () => {
+  it('should match snapshot with hardcoded appointments', () => {
+    const component = withTheme(<AppointmentsContainer />);
+    // Do not dive as the component uses short-id
+    // Compare parts
+    const wrapper = shallow(component);
+    expect(wrapper).toMatchSnapshot();
+  });
+});
+
       
