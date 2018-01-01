@@ -257,6 +257,29 @@ describe('axios apiClient wrapper', () => {
 4. rearrange saga code to make test
 5. 
 
-      
+//fake-api/server test
+
+const request = require('supertest');
+const server = `http://localhost:7000/api/exp/employees/banker/v1/`;
+
+beforeAll(() => {
+  const s = require('./server');
+});
+
+describe('API  Testing :', () => {
+  test('expect response for valid companyInfo:', async () => {
+    const response = await request(`${server}`).get(`companyInfo`);
+    expect(response.status).toEqual(200);
+    expect(response.type).toEqual('application/json');
+    expect(response.body.companyName).toBeDefined();
+  });
+  test('expect response for valid employees:', async () => {
+    const response = await request(`${server}`).get(`employees`);
+    expect(response.status).toEqual(200);
+    expect(response.type).toEqual('application/json');
+    expect(response.body).toBeDefined();
+  })
+})
+
       
       
